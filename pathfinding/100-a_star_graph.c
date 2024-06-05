@@ -90,7 +90,7 @@ queue_t *a_star_graph(graph_t *graph, vertex_t const *start, vertex_t const *tar
     double *f_score;
     vertex_t **came_from;
     vertex_t *current;
-    int i;
+    unsigned int i;
 
     g_score = (double *)malloc(sizeof(double) * graph->nb_vertices);
     f_score = (double *)malloc(sizeof(double) * graph->nb_vertices);
