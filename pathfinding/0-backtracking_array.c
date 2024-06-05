@@ -1,144 +1,101 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include "pathfinding.h"
 
-// Struct for a point in the map
-typedef struct point {
-    int x;
-    int y;
-} point_t;
+/*Let’s agree we are all using the same code 😪😹*/
 
-// Node for the queue
-typedef struct queue_node {
-    point_t pt;
-    struct queue_node *next;
-} queue_node_t;
+/**
+* backtracking_array - backtracking algorithm
+* @map: map
+* @rows: number of rows
+* @cols: number of columns
+* @start: start point
+* @target: target point
+* Return: queue of points
+*/
+queue_t *backtracking_array(char **map, int rows, int cols,
 
-// Queue structure
-typedef struct queue {
-    queue_node_t *front;
-    queue_node_t *rear;
-} queue_t;
+							point_t const *start, point_t const *target)
+{
+	queue_t *path = queue_create(), *reverse_path = queue_create();
+	char **mymap;
 
-// Create a new queue
-queue_t *create_queue() {
-    queue_t *q = (queue_t *)malloc(sizeof(queue_t));
-    q->front = q->rear = NULL;
-    return q;
+	int i;
+
+	point_t *point;
+
+	if (!path || !reverse_path)
+		return (NULL);
+	mymap = malloc(rows * sizeof(char *));
+	if (!mymap)
+		exit(1);
+	for (i = 0; i < rows; i++)
+	{
+		mymap[i] = malloc(cols + 1);
+		if (!mymap[i])
+			exit(1);
+		strcpy(mymap[i], map[i]);
+	}
+
+	if (backtrack(mymap, rows, cols, target, start->x, start->y, path))
+	{
+		while ((point = dequeue(path)))
+			queue_push_front(reverse_path, point);
+		free(path);
+	}
+	else
+	{
+		free(path);
+		free(reverse_path);
+		reverse_path = NULL;
+	}
+	for (i = 0; i < rows; i++)
+		free(mymap[i]);
+	free(mymap);
+	return (reverse_path);
 }
 
-// Enqueue a point to the queue
-void enqueue(queue_t *q, point_t pt) {
-    queue_node_t *new_node = (queue_node_t *)malloc(sizeof(queue_node_t));
-    new_node->pt = pt;
-    new_node->next = NULL;
-    if (q->rear == NULL) {
-        q->front = q->rear = new_node;
-        return;
-    }
-    q->rear->next = new_node;
-    q->rear = new_node;
-}
+/**
+* backtrack - backtracking algorithm
+* @map: map
+* @rows: number of rows
+* @cols: number of columns
+* @target: target point
+* @x: current x
+* @y: current y
+* @path: path
+* Return: 1 on success, 0 on failure
+*/
+int backtrack(char **map, int rows, int cols, point_t const *target,
 
-// Check if the queue is empty
-int is_empty(queue_t *q) {
-    return q->front == NULL;
-}
+			int x, int y, queue_t *path)
+{
+	point_t *point;
 
-// Dequeue a point from the queue
-point_t dequeue(queue_t *q) {
-    if (is_empty(q)) {
-        point_t pt = {-1, -1};
-        return pt;
-    }
-    queue_node_t *temp = q->front;
-    point_t pt = temp->pt;
-    q->front = q->front->next;
-    if (q->front == NULL)
-        q->rear = NULL;
-    free(temp);
-    return pt;
-}
+	if (x < 0 || x >= cols || y < 0 || y >= rows || map[y][x] != '0')
+		return (0);
 
-// Print the queue
-void print_queue(queue_t *q) {
-    queue_node_t *node = q->front;
-    while (node != NULL) {
-        printf("(%d, %d)\n", node->pt.x, node->pt.y);
-        node = node->next;
-    }
-}
+	map[y][x] = '1';
 
-// Recursive backtracking function
-int backtrack(char **map, int rows, int cols, point_t start, point_t target, queue_t *path, int **visited) {
-    if (start.x < 0 || start.x >= rows || start.y < 0 || start.y >= cols || map[start.x][start.y] == '1' || visited[start.x][start.y])
-        return 0;
+	point = calloc(1, sizeof(*point));
 
-    printf("Visiting cell: (%d, %d)\n", start.x, start.y);
-    if (start.x == target.x && start.y == target.y) {
-        enqueue(path, start);
-        return 1;
-    }
+	if (!point)
+		exit(1);
 
-    visited[start.x][start.y] = 1;
+	point->x = x;
+	point->y = y;
 
-    point_t directions[] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
+	queue_push_front(path, point);
+	printf("Checking coordinates [%d, %d]\n", x, y);
 
-    for (int i = 0; i < 4; i++) {
-        point_t next = {start.x + directions[i].x, start.y + directions[i].y};
-        if (backtrack(map, rows, cols, next, target, path, visited)) {
-            enqueue(path, start);
-            return 1;
-        }
-    }
+	if (x == target->x && y == target->y)
+		return (1);
 
-    visited[start.x][start.y] = 0;
-    return 0;
-}
+	if (backtrack(map, rows, cols, target, x + 1, y, path) ||
+		backtrack(map, rows, cols, target, x, y + 1, path) ||
+		backtrack(map, rows, cols, target, x - 1, y, path) ||
+		backtrack(map, rows, cols, target, x, y - 1, path))
+		return (1);
 
-// Main function to find the path
-queue_t *backtracking_array(char **map, int rows, int cols, point_t const *start, point_t const *target) {
-    queue_t *path = create_queue();
-    int **visited = (int **)malloc(rows * sizeof(int *));
-    for (int i = 0; i < rows; i++) {
-        visited[i] = (int *)calloc(cols, sizeof(int));
-    }
+	free(dequeue(path));
 
-    if (backtrack(map, rows, cols, *start, *target, path, visited)) {
-        return path;
-    } else {
-        // Free the queue and visited if no path is found
-        while (!is_empty(path)) {
-            dequeue(path);
-        }
-        free(path);
-        for (int i = 0; i < rows; i++) {
-            free(visited[i]);
-        }
-        free(visited);
-        return NULL;
-    }
-}
-
-// Example usage
-int main() {
-    char *map[] = {
-        "0010",
-        "0000",
-        "0100",
-        "0001"
-    };
-
-    point_t start = {0, 0};
-    point_t target = {3, 3};
-
-    queue_t *path = backtracking_array(map, 4, 4, &start, &target);
-
-    if (path != NULL) {
-        printf("Path found:\n");
-        print_queue(path);
-    } else {
-        printf("No path found\n");
-    }
-
-    return 0;
+	return (0);
 }
